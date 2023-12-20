@@ -15,17 +15,23 @@
 # limitations under the License.
 
 # https://mcr.microsoft.com/v2/dotnet/sdk/tags/list
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0.100-1 AS builder
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0.100-1-alpine3.18 AS builder
 ARG TARGETARCH
+
+# Building gRPC applications on Alpine Linux requires additional steps for protoc to work
+# https://learn.microsoft.com/aspnet/core/grpc/troubleshoot#building-grpc-on-alpine-linux
+RUN apk add grpc-plugins
+ARG PROTOBUF_PROTOC=/usr/bin/protoc
+ARG GRPC_PROTOC_PLUGIN=/usr/bin/grpc_csharp_plugin
 
 WORKDIR /usr/src/app/
 
 COPY ./src/cartservice/ ./
 COPY ./pb/ ./src/protos/
 
-RUN dotnet restore ./src/cartservice.csproj -v d -r linux-musl-$TARGETARCH
+RUN dotnet restore ./src/cartservice.csproj -v d -a $TARGETARCH
 
-RUN dotnet publish ./src/cartservice.csproj -v d -r linux-musl-$TARGETARCH --no-restore -o /cartservice
+RUN dotnet publish ./src/cartservice.csproj -v d -a $TARGETARCH --no-restore -o /cartservice
 
 # -----------------------------------------------------------------------------
 
