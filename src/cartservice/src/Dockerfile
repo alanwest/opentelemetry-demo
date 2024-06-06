@@ -27,7 +27,7 @@ ARG OTEL_DOTNET_CONTRIB_SRC=/usr/src/opentelemetry-dotnet-contrib
 WORKDIR /usr/src/app/
 
 COPY ./src/cartservice/ ./
-COPY ./pb/ ./src/protos/
+COPY ./pb/ ./pb/
 
 RUN dotnet restore ./src/cartservice.csproj -v d -r linux-musl-$TARGETARCH
 

@@ -1,11 +1,13 @@
 # Copyright The OpenTelemetry Authors
 # SPDX-License-Identifier: Apache-2.0
+name: Test image generation
 
 on:
   push:
     paths:
       - 'src/**'
       - 'test/**'
+<<<<<<< HEAD
   workflow_call:
     inputs:
       push:
@@ -196,3 +198,10 @@ jobs:
             us-docker.pkg.dev/${{ secrets.PROJECT_ID }}/gcr.io/demo:${{ inputs.version }}-${{matrix.file_tag.tag_suffix }}
           cache-from: type=gha
           cache-to: type=gha
+=======
+
+jobs:
+  build_images:
+    if: github.repository == 'open-telemetry/opentelemetry-demo'
+    uses: ./.github/workflows/component_build_images.yml
+>>>>>>> main
