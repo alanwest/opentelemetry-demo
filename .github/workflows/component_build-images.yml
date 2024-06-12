@@ -9,6 +9,11 @@ on:
         default: false
         required: false
         type: boolean
+      push_new_relic:
+        description: Should the images be pushed
+        default: false
+        required: false
+        type: boolean
       version:
         description: The version used when tagging the image
         default: 'dev'
@@ -31,6 +36,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
 
     env:
       RELEASE_VERSION: "${{ github.event.release.tag_name }}"
@@ -91,6 +97,10 @@ jobs:
             tag_suffix: loadgenerator
             context: ./
             setup-qemu: true
+          - file: ./src/nrdot/Dockerfile
+            tag_suffix: nrdot
+            context: ./
+            setup-qemu: true
           - file: ./src/paymentservice/Dockerfile
             tag_suffix: paymentservice
             context: ./
@@ -125,7 +135,7 @@ jobs:
         run: |
           DOCKERFILE_DIR=$(dirname ${{ matrix.file_tag.file }})
           FILES_CHANGED=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }} -- $DOCKERFILE_DIR)
-          FORCE_PUSH=${{ inputs.push }}
+          FORCE_PUSH=${{ inputs.push_new_relic }}
           if [ "$FORCE_PUSH" = true ]; then
             echo "Force push is enabled, proceeding with build."
             echo "skip=false" >> "$GITHUB_OUTPUT"
@@ -173,5 +183,27 @@ jobs:
             ${{ inputs.dockerhub_repo }}:latest-${{matrix.file_tag.tag_suffix }}
             ${{ inputs.ghcr_repo }}:${{ inputs.version }}-${{ matrix.file_tag.tag_suffix }}
             ${{ inputs.ghcr_repo }}:latest-${{ matrix.file_tag.tag_suffix }}
+          cache-from: type=gha
+          cache-to: type=gha
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ secrets.PROJECT_ID }}
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+        if: ${{ inputs.push_new_relic }}
+      - name: Configure Docker CLI to authenticate with GCR
+        run: gcloud auth configure-docker --quiet us-docker.pkg.dev
+        if: ${{ inputs.push_new_relic }}
+      - name: Matrix Build and push demo images to New Relic Community Team container registry
+        if: steps.check_changes.outputs.skip == 'false'
+        uses: docker/build-push-action@v3.3.1
+        with:
+          context: ${{ matrix.file_tag.context }}
+          file: ${{ matrix.file_tag.file }}
+          platforms: linux/amd64,linux/arm64
+          push: ${{ inputs.push_new_relic }}
+          tags: |
+            us-docker.pkg.dev/${{ secrets.PROJECT_ID }}/gcr.io/demo:${{ inputs.version }}-${{matrix.file_tag.tag_suffix }}
           cache-from: type=gha
           cache-to: type=gha
